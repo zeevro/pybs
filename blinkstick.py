@@ -68,7 +68,7 @@ class BlinkStick:
 
     def _get_feature_report(self, name):
         report = self._reports[name]
-        return self._dev.get_feature_report(report.id, report.size)[1:-1]
+        return self._dev.get_feature_report(report.id, report.size)[1:report.size]
 
     @classmethod
     def get_all_device_serials(cls):
