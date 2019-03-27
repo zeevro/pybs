@@ -1,1 +1,1 @@
-from blinkstick import *
+from .blinkstick import *
