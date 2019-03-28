@@ -16,13 +16,14 @@ def use_black_text(rgb):
 def main():
     def get_device():
         global blinkstick
-        try:
-            blinkstick = pybs.BlinkStick(brightness=30)
-            top.tk.globalsetvar('dev_button', blinkstick.get_name() or blinkstick.serial)
-            change_brightness(0)
-        except:
-            blinkstick = None
-            top.tk.globalsetvar('dev_button', 'No device')
+        if blinkstick is not None:
+            try:
+                blinkstick = pybs.BlinkStick(brightness=30)
+            except:
+                top.tk.globalsetvar('dev_button', 'No device')
+            else:
+                top.tk.globalsetvar('dev_button', blinkstick.get_name() or blinkstick.serial)
+                change_brightness(0)
 
     def change_brightness(value):
         global blinkstick
