@@ -16,7 +16,7 @@ def use_black_text(rgb):
 def main():
     def get_device():
         global blinkstick
-        if blinkstick is not None:
+        if blinkstick is None:
             try:
                 blinkstick = pybs.BlinkStick(brightness=30)
             except:

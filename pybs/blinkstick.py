@@ -64,11 +64,16 @@ class BlinkStick:
             data = bytes(data)
         data = data or b''
         data = bytes([report.id]) + data + bytes(report.size - len(data))
-        return self._dev.send_feature_report(data) > 0
+        sent = self._dev.send_feature_report(data)
+        if sent == -1:
+            raise DeviceNotFound('Device was disconnected')
 
     def _get_feature_report(self, name):
         report = self._reports[name]
-        return self._dev.get_feature_report(report.id, report.size)[1:report.size]
+        res = self._dev.get_feature_report(report.id, report.size)
+        if not res:
+            raise DeviceNotFound('Device was disconnected')
+        return res[1:report.size]
 
     @classmethod
     def get_all_device_serials(cls):
@@ -77,6 +82,15 @@ class BlinkStick:
     @property
     def serial(self):
         return self._dev.get_serial_number_string()
+
+    @property
+    def connected(self):
+        try:
+            self.get_color()
+        except DeviceNotFound:
+            return False
+
+        return True
 
     def _get_brightness_factor(self):
         return ((self.brightness / 10) ** 2) / 100
@@ -205,7 +219,7 @@ def main():
                 stick.morph([0, 0, 0], args.duration)
             elif args.color_action == 'color_wheel':
                 for _ in range(args.repeats):
-                    steps = args.duration * 100
+                    steps = int(args.duration * 100)
                     for step in range(steps):
                         color = list(map(int, colorsys.hsv_to_rgb(step / steps, 1, 255)))
                         stick.set_color(color)
