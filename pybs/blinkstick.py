@@ -119,6 +119,8 @@ class BlinkStick:
 
 
 def random_color():
+    '''Generate a random color that is not too bright or dark and is rather saturated (not too close to a shade of grey)'''
+
     return list(map(int, colorsys.hsv_to_rgb(random.random(), 0.5 + random.random() / 2, random.randint(128, 255))))
 
 
