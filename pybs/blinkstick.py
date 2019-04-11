@@ -1,25 +1,14 @@
-import hid
 import webcolors
 import colorsys
 import random
 import time
 from collections import namedtuple
 
+from .exceptions import DeviceNotFound
+from ._usb import HIDDevice, enumerate_devices  # pylint: disable=no-name-in-module
+
 
 __all__ = ['BlinkStick', 'DeviceNotFound', 'parse_color', 'random_color']
-
-
-class DeviceNotFound(Exception):
-    pass
-
-
-class HIDDevice(hid.device):
-    def __init__(self, description):
-        super().__init__()
-        self.open_path(description['path'])
-
-    def __del__(self):
-        self.close()
 
 
 class BlinkStick:
@@ -33,55 +22,32 @@ class BlinkStick:
                 'data': Report(3, 33)}
 
     def __init__(self, serial=None, name=None, brightness=100):
-        device_descriptions = hid.enumerate(self.VID, self.PID)
-        if not device_descriptions:
+        devices = enumerate_devices(self.VID, self.PID, serial=serial)
+        if not devices:
             raise DeviceNotFound('No devices connected!')
 
         if name:
-            for desc in device_descriptions:
-                self._dev = HIDDevice(desc)
+            for dev in devices:
+                self._dev = dev
+                self._dev.open()
                 if self.get_name() == name:
                     break
-            else:
-                raise DeviceNotFound('Device not found!')
-        elif serial:
-            for desc in device_descriptions:
-                if desc['serial_number'] == serial:
-                    self._dev = HIDDevice(desc)
-                    break
+                self._dev.close()
             else:
                 raise DeviceNotFound('Device not found!')
         else:
-            self._dev = HIDDevice(device_descriptions[0])
+            self._dev = devices[0]
+            self._dev.open()
 
         self.brightness = max(0, min(brightness or 100, 100))
 
-    def _send_feature_report(self, name, data=None):
-        report = self._reports[name]
-        if isinstance(data, str):
-            data = data.encode()
-        elif isinstance(data, (list, tuple)):
-            data = bytes(data)
-        data = data or b''
-        data = bytes([report.id]) + data + bytes(report.size - len(data))
-        sent = self._dev.send_feature_report(data)
-        if sent == -1:
-            raise DeviceNotFound('Device was disconnected')
-
-    def _get_feature_report(self, name):
-        report = self._reports[name]
-        res = self._dev.get_feature_report(report.id, report.size)
-        if not res:
-            raise DeviceNotFound('Device was disconnected')
-        return res[1:report.size]
-
     @classmethod
     def get_all_device_serials(cls):
-        return [desc['serial_number'] for desc in hid.enumerate(cls.VID, cls.PID)]
+        return [d.serial for d in enumerate_devices(cls.VID, cls.PID)]
 
     @property
     def serial(self):
-        return self._dev.get_serial_number_string()
+        return self._dev.serial
 
     @property
     def connected(self):
@@ -91,6 +57,14 @@ class BlinkStick:
             return False
 
         return True
+
+    def _send_feature_report(self, name, data):
+        report = self._reports[name]
+        return self._dev.send_feature_report(report.id, report.size, data)
+
+    def _get_feature_report(self, name):
+        report = self._reports[name]
+        return self._dev.get_feature_report(report.id, report.size)
 
     def _get_brightness_factor(self):
         return ((self.brightness / 10) ** 2) / 100
